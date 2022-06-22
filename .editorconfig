@@ -1,0 +1,4 @@
+﻿[*.{cs,vb}]
+
+# IDE0003: 修飾子を削除
+dotnet_diagnostic.IDE0003.severity = silent
