@@ -90,9 +90,9 @@ public class JmaPullInformationService : IInformationService
         _ = Update(true);
     }
 
-    public void UpdateTime(DateTime _)
+    public void UpdateTime(DateTime dt)
     {
-        throw new NotImplementedException();
+        Timer.UpdateTime(dt);
     }
 
     public async void InvokeForLatest()

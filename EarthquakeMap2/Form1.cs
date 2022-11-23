@@ -26,6 +26,7 @@ public partial class Form1 : Form
             if ((e.Button & MouseButtons.Right) == 0) return;
             _earthquake = TestInformation();
             UpdateEarthquake();
+            // TestEew();
         };
         pictureBox1.MouseWheel += (_, e) =>
         {
@@ -124,7 +125,7 @@ public partial class Form1 : Form
 
     private static EarthquakeInformation TestInformation()
     {
-        var xmlText = File.ReadAllText(@"xml\震度速報2.xml");
+        var xmlText = File.ReadAllText(@"TestXml\fukushima_sokuhou.xml");
 
         var xmlSerializer = new XmlSerializer(typeof(typereport));
         var earthquake = EarthquakeInformation.ParseFromXml(xmlSerializer.Deserialize(new StringReader(xmlText)) as typereport)!;

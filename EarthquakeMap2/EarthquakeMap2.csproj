@@ -14,7 +14,10 @@
 
   <ItemGroup>
     <Reference Include="EarthquakeLibrary">
-      <HintPath>..\..\EarthquakeLibrary\EarthquakeLibrary\bin\Release\EarthquakeLibrary.dll</HintPath>
+      <HintPath>..\..\EarthquakeLibrary\EarthquakeLibrary\bin\Release\net6.0\EarthquakeLibrary.dll</HintPath>
+    </Reference>
+    <Reference Include="EewLibrary">
+      <HintPath>..\..\EewLibrary\EewLibrary\bin\Release\EewLibrary.dll</HintPath>
     </Reference>
     <Reference Include="JmaXmlLib">
       <HintPath>..\..\JmaXmlLib\JmaXmlLib\bin\Release\net6.0\JmaXmlLib.dll</HintPath>
@@ -46,6 +49,18 @@
     <PackageReference Include="KyoshinMonitorLib.SkiaImages" Version="0.4.2.1" />
     <PackageReference Include="KyoshinMonitorLib.Timers" Version="0.4.2.1" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="TestXml\fukushima_shindo.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestXml\fukushima_sokuhou.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestXml\kumamoto_shindo.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

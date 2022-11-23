@@ -31,7 +31,8 @@ public partial class EarthquakeInformation
         {
             "震度速報" => EarthquakeInformationType.SeismicIntensityInformation,
             "震源に関する情報" => EarthquakeInformationType.HypocenterInformation,
-            "震源・震度に関する情報" => EarthquakeInformationType.HypocenterAndSeismicIntensityInformation,
+            "震源・震度に関する情報" when xmlBody.Intensity != null
+                => EarthquakeInformationType.HypocenterAndSeismicIntensityInformation,
             _ => null
         };
         if (type == null) return null;
