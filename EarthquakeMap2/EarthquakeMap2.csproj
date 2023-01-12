@@ -17,7 +17,7 @@
       <HintPath>..\..\EarthquakeLibrary\EarthquakeLibrary\bin\Release\net6.0\EarthquakeLibrary.dll</HintPath>
     </Reference>
     <Reference Include="EewLibrary">
-      <HintPath>..\..\EewLibrary\EewLibrary\bin\Release\EewLibrary.dll</HintPath>
+      <HintPath>..\..\EewLibrary\EewLibrary\bin\Release\net6.0\EewLibrary.dll</HintPath>
     </Reference>
     <Reference Include="JmaXmlLib">
       <HintPath>..\..\JmaXmlLib\JmaXmlLib\bin\Release\net6.0\JmaXmlLib.dll</HintPath>
@@ -52,10 +52,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="TestXml\fukushima_shindo.xml">
+    <None Update="TestXml\fukushima_1611_shindo.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="TestXml\fukushima_sokuhou.xml">
+    <None Update="TestXml\fukushima_2203_shindo_max7.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestXml\fukushima_2203_shindo.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestXml\fukushima_2203_sokuhou.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestXml\fukushima_2205_sokuhou.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="TestXml\kumamoto_shindo.xml">
