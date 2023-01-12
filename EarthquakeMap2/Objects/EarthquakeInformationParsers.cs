@@ -24,6 +24,8 @@ public partial class EarthquakeInformation
         return (coordinate, int.Parse(depth) / 100);
     }
 
+    private static readonly Dictionary<string, (ReadOnlyCollection<IntensityPref> intensity, DateTime dt)> LatestIntensityDict = new();
+
     public static EarthquakeInformation? ParseFromXml(typereport? xmlData)
     {
         var xmlBody = xmlData.Any.Deserialize<typeBody>();
@@ -36,7 +38,20 @@ public partial class EarthquakeInformation
             _ => null
         };
         if (type == null) return null;
-        var intensity = SelectReadOnly(xmlBody.Intensity.Observation.Pref, ToIntensityPref);
+        var intensity = xmlBody.Intensity == null
+            ? new ReadOnlyCollection<IntensityPref>(new ImmutableArray<IntensityPref>())
+            : SelectReadOnly(xmlBody.Intensity.Observation.Pref, ToIntensityPref);
+
+        var existIntensity = LatestIntensityDict.TryGetValue(xmlData.Head.EventID, out var lt);
+
+
+        if (existIntensity)
+        {
+            if (!intensity.Any())
+                intensity = lt.intensity;
+            else if (lt.dt > xmlData.Head.ReportDateTime)
+                LatestIntensityDict[xmlData.Head.EventID] = (intensity, xmlData.Head.ReportDateTime);
+        }
 
         if (type is EarthquakeInformationType.SeismicIntensityInformation)
             return new EarthquakeInformation

@@ -1,5 +1,7 @@
-﻿using System.Drawing.Drawing2D;
+﻿using System.Diagnostics;
+using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 using EarthquakeLibrary;
@@ -21,6 +23,8 @@ public static class Map
     private static TopoJsonData? TopoJsonData { get; set; }
     private static Dictionary<string, Coordinate> Coordinates { get; } = new();
     private static Dictionary<string, string> AreaNames { get; } = new();
+    private static Dictionary<int, HashSet<int>> ArcPref { get; } = new();
+    private static Dictionary<int, int> ArcCount { get; } = new();
 
     internal static void Initialize()
     {
@@ -66,17 +70,35 @@ public static class Map
         {
             Coordinates[observationPoint.Code] = new Coordinate(observationPoint.Location);
         }
+
+
+        foreach (var geometry in TopoJsonData.Geometries)
+        {
+            if (geometry?.Properties?.Code is null) continue;
+            
+            var code = geometry.Properties.Code;
+            foreach (var arcRaw in geometry.Arcs[0])
+            {
+                int arc = arcRaw;
+                if (arc < 0) arc = ~arc;
+                ArcPref[arc] = ArcPref.GetValueOrDefault(arc, new HashSet<int>());
+                ArcPref[arc].Add(int.Parse(code[..2]));
+                ArcCount[arc] = ArcCount.GetValueOrDefault(arc, 0) + 1;
+            }
+        }
     }
 
     public static Bitmap DrawMap((string code, Intensity intensity)[] intensityList, Coordinate? epicenter,
         Size size, MapType mapType, Intensity filterIntensity, Bitmap? sideInfo = null, double zoom = 1)
     {
+        var sw = Stopwatch.StartNew();
+        Console.WriteLine("Map Drawing...");
         if (TopoJsonData == null) throw new Exception("Not Initialized");
 
         var intensityDict = intensityList.ToDictionary(x => x.code, x => x.intensity);
         var maxIntensity = intensityList.Max(x => x.intensity)!;
 
-        var geometries = new Dictionary<string, List<Coordinate[]>>();
+        var geometries = new Dictionary<string, List<(Coordinate coordinate, bool isPrefBound)[]>>();
 
         double geoMinLon = double.MaxValue,
             geoMaxLon = double.MinValue,
@@ -88,18 +110,31 @@ public static class Map
         {
             if (geometry?.Properties?.Code is null) continue;
 
-            var coordinates = new List<Coordinate>();
-            foreach (var idx in geometry.Arcs[0].Select(arc =>
-                         arc >= 0 ? TopoJsonData.Arcs[arc] : TopoJsonData.Arcs[~arc].Reverse()))
+            var coordinates = new List<(Coordinate, bool)>();
+            var arcIndexList = geometry.Arcs[0].Select(x => new { Reversed = x < 0, Index = x >= 0 ? x : ~x}).ToArray();
+            // var coordinates_ = new List<Coordinate>();
+            // foreach (var idx in geometry.Arcs[0].Select(arc => arc >= 0 ? TopoJsonData.Arcs[arc] : TopoJsonData.Arcs[~arc].Reverse()))
+            // {
+            //     coordinates_.AddRange(idx);
+            // }
+            var coordinatesList = arcIndexList
+                .Select(a => a.Reversed ? TopoJsonData.Arcs[a.Index].Reverse() : TopoJsonData.Arcs[a.Index])
+                .Select(a => a.ToArray())
+                .ToArray();
+            foreach (var idx in coordinatesList.Zip(arcIndexList.Select(x => x.Index)))
             {
-                coordinates.AddRange(idx);
+                coordinates.Add((idx.First[0], false));
+                foreach (var coordinate in idx.First.AsSpan(1))
+                {
+                    coordinates.Add((coordinate, ArcPref[idx.Second].Count > 1 || ArcCount[idx.Second] == 1));
+                }
             }
 
             var code = geometry.Properties.Code;
             if (!geometries.ContainsKey(code))
-                geometries.Add(code, new List<Coordinate[]>());
+                geometries.Add(code, new ());
             geometries[code].Add(coordinates.ToArray());
-            foreach (var (lon, lat) in coordinates)
+            foreach (var ((lon, lat), _) in coordinates)
             {
                 geoMinLon = Math.Min(geoMinLon, lon);
                 geoMaxLon = Math.Max(geoMaxLon, lon);
@@ -124,7 +159,7 @@ public static class Map
             if (v < filterIntensity) continue;
             if (mapType == MapType.AreaFill)
             {
-                foreach (var (lon, lat) in geometries[k].SelectMany(x => x))
+                foreach (var ((lon, lat), _) in geometries[k].SelectMany(x => x))
                 {
                     minLon = Math.Min(minLon, lon);
                     maxLon = Math.Max(maxLon, lon);
@@ -168,19 +203,22 @@ public static class Map
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.FillRectangle(new SolidBrush(Color.FromArgb(37, 37, 50)), 0, 0, width, height);
 
-        var pen = new Pen(Color.FromArgb(120, 120, 120), 2)
+        var pen = new Pen(Color.FromArgb(120, 120, 120), 1)
         {
             LineJoin = LineJoin.Round,
             StartCap = LineCap.Round,
             EndCap = LineCap.Round
         };
-        var pointsDict = new Dictionary<string, PointF[][]>();
+        var pen2 = pen.Clone() as Pen;
+        pen2.Width = 2.5f;
+        
+        var pointsDict = new Dictionary<string, (PointF points, bool b)[][]>();
 
         foreach (var (code, coordinatesList) in geometries)
         {
             var pointsList = coordinatesList
-                .Select(x => x.Select(ConvertCoordinates).ToArray())
-                .Where(x => x.Any(a => a.X >= 0 && a.X < width && a.Y >= 0 && a.Y < height))
+                .Select(x => x.Select(x => (ConvertCoordinates(x.coordinate), x.isPrefBound)).ToArray())
+                .Where(x => x.Select(a => a.Item1).Any(a => a.X >= 0 && a.X < width && a.Y >= 0 && a.Y < height))
                 .ToArray();
             if (!pointsList.Any()) continue;
             pointsDict[code] = pointsList;
@@ -196,7 +234,7 @@ public static class Map
             }).ToArray();
 
         foreach (var pointFs in pointsDict.SelectMany(kvp => kvp.Value))
-            g.FillPolygon(new SolidBrush(Color.FromArgb(50, 50, 50)), pointFs);
+            g.FillPolygon(new SolidBrush(Color.FromArgb(50, 50, 50)), pointFs.Select(x => x.points).ToArray());
 
         if (mapType == MapType.AreaFill)
         {
@@ -204,12 +242,19 @@ public static class Map
             {
                 if (!pointsDict.ContainsKey(code)) continue;
                 foreach (var pointFs in pointsDict[code])
-                    g.FillPolygon(new SolidBrush(Form1.Colors[intensity.EnumOrder]), pointFs);
+                    g.FillPolygon(new SolidBrush(Form1.Colors[intensity.EnumOrder]), pointFs.Select(x => x.points).ToArray());
             }
         }
 
         foreach (var pointFs in pointsDict.SelectMany(kvp => kvp.Value))
-            g.DrawPolygon(pen, pointFs);
+        {
+            for (int i = 0; i < pointFs.Length; ++i)
+            {
+                int nxt = (i + 1) % pointFs.Length;
+                g.DrawLine(pointFs[nxt].b ? pen2 : pen, pointFs[nxt].points, pointFs[i].points);
+            }
+            // g.DrawPolygon(pen, pointFs.Select(x => x.points).ToArray());
+        }
 
         foreach (var (code, intensity, point) in drawList)
         {
@@ -231,6 +276,7 @@ public static class Map
 
         if (sideInfo is { }) g.DrawImage(sideInfo, 8, 10);
 
+        Console.WriteLine($"Drawing Complete ({sw.ElapsedMilliseconds} ms)");
         return bmp;
     }
 
@@ -284,21 +330,21 @@ public static class Map
             _ => null
         };
         if (intensity == Intensity.Unknown) return;
-        var textColor = intensity.EnumOrder is >= 3 and <= 6 ? Color.FromArgb(30, 30, 30) : Color.White;
-        if (intensityPlusMinus is { } a)
+        var textColor = intensity.EnumOrder is >= 3 and <= 6 ? Color.FromArgb(240, 0, 0, 00) : Color.FromArgb(240, 255, 255, 255);
+        if (intensityPlusMinus != null)
         {
             var offset = offsetX1 - offsetDiff;
             g.DrawString(intensity.ShortString[0].ToString(), font, new SolidBrush(textColor),
                 new RectangleF(topPoint.X + offset, topPoint.Y + offsetY1, iconSize - offset, iconSize - offsetY1));
 
-            if (a == "-")
+            if (intensityPlusMinus == "-")
             {
                 g.DrawLine(new Pen(textColor, width3), topPoint.X + offsetX3, topPoint.Y + offsetY3,
                     topPoint.X + offsetX3 + length3, topPoint.Y + offsetY3);
             }
             else
             {
-                g.DrawString(a, font2, new SolidBrush(textColor),
+                g.DrawString(intensityPlusMinus, font2, new SolidBrush(textColor),
                     new RectangleF(topPoint.X + offsetX2, topPoint.Y + offsetY2, iconSize - offsetX2,
                         iconSize - offsetY2));
             }

@@ -30,13 +30,14 @@ public class JmaPullInformationService : IInformationService
 
     private async Task TimerOnElapsed(DateTime dt)
     {
+        // Feed が更新されるのは毎分 20 秒
         if (!_enabled || dt.Second != 20) return;
         await Update();
     }
 
-    private static async Task<SyndicationFeed> GetFeedFromUrl(string url)
+    private static async Task<SyndicationFeed> GetFeedFromUrl(string url = XmlFeedUrl)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, XmlFeedUrl);
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
         var response = await HttpClient.SendAsync(request);
 
         using var reader = XmlReader.Create(await response.Content.ReadAsStreamAsync());
@@ -45,36 +46,45 @@ public class JmaPullInformationService : IInformationService
 
     private static bool IsEarthquakeTitle(string title) => title is "震度速報" or "震源に関する情報" or "震源・震度に関する情報";
 
-    private EarthquakeInformation? ParseFromXml(string xml) =>
+    private static EarthquakeInformation? ParseFromXml(string xml) =>
         Serializer.Deserialize(new StringReader(xml)) is not typereport xmlData
             ? null
             : EarthquakeInformation.ParseFromXml(xmlData);
 
     private async Task Update(bool ignoreEnqueue = false)
     {
-        var feed = await GetFeedFromUrl(XmlFeedUrl);
-        var feedItems = feed.Items.Where(x => !_feedIds.Contains(x.Id)).OrderBy(x => x.LastUpdatedTime);
+        Console.WriteLine("Information Update Check...");
+        var feed = await GetFeedFromUrl();
+        var feedItems = feed.Items.Where(x => !_feedIds.Contains(x.Id)).OrderBy(x => x.LastUpdatedTime).ToArray();
+        Console.WriteLine($"New Items: {feedItems.Length}");
         foreach (var feedItem in feedItems)
         {
             _feedIds.Add(feedItem.Id);
-            if (!ignoreEnqueue && IsEarthquakeTitle(feedItem.Title.Text)) _queue.Enqueue(feedItem.Links[0].Uri.AbsoluteUri);
+            if (!ignoreEnqueue && IsEarthquakeTitle(feedItem.Title.Text))
+                _queue.Enqueue(feedItem.Links[0].Uri.AbsoluteUri);
         }
 
+        while (_queue.Count > 1) await ProcessOnce(invoke: false);
         await ProcessOnce();
     }
 
-    private async Task ProcessOnce(string? url = null)
+    private async Task<bool> ProcessOnce(string? url = null, bool invoke = true)
     {
         if (url == null)
         {
-            if (!_queue.Any()) return;
+            if (!_queue.Any()) return false;
             url = _queue.Dequeue();
         }
         var xmlText = await HttpClient.GetStringAsync(url);
         var earthquake = ParseFromXml(xmlText);
-        if (earthquake == null) return;
+        if (earthquake == null) return false;
 
-        await Task.Run(() => this.InformationUpdated?.Invoke(this, new InformationUpdatedEventArgs(earthquake)));
+        if (invoke)
+        {
+            await Task.Run(() => this.InformationUpdated?.Invoke(this, new InformationUpdatedEventArgs(earthquake)));
+        }
+
+        return true;
     }
 
     public SecondBasedTimer Timer;
@@ -97,12 +107,25 @@ public class JmaPullInformationService : IInformationService
 
     public async void InvokeForLatest()
     {
-        var feed = await GetFeedFromUrl(XmlFeedUrl);
-        var item = feed.Items.FirstOrDefault(x => IsEarthquakeTitle(x.Title.Text));
-        if (item != null) await ProcessOnce(item.Links[0].Uri.AbsoluteUri);
+        var feed = await GetFeedFromUrl();
+        var items = feed.Items.Where(x => IsEarthquakeTitle(x.Title.Text)).ToArray();
+        foreach (var item in items)
+        {
+            if (await ProcessOnce(item.Links[0].Uri.AbsoluteUri))
+            {
+                return;
+            }
+        }
+
         feed = await GetFeedFromUrl(XmlLongFeedUrl);
-        item = feed.Items.FirstOrDefault(x => IsEarthquakeTitle(x.Title.Text));
-        if (item != null) await ProcessOnce(item.Links[0].Uri.AbsoluteUri);
+        items = feed.Items.Where(x => IsEarthquakeTitle(x.Title.Text)).ToArray();
+        foreach (var item in items)
+        {
+            if (await ProcessOnce(item.Links[0].Uri.AbsoluteUri))
+            {
+                return;
+            }
+        }
     }
 
     public event EventHandler<InformationUpdatedEventArgs>? InformationUpdated;

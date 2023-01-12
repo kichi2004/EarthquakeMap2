@@ -2,7 +2,7 @@
 using System.Drawing.Text;
 using EarthquakeLibrary;
 using EarthquakeMap2.Objects;
-using KyoshinMonitorLib.ApiResult.WebApi;
+using EewLibrary;
 
 namespace EarthquakeMap2.Drawing;
 
@@ -16,7 +16,7 @@ public static class SideInfo
         return g;
     }
 
-    public static Bitmap DrawEew(Eew eew)
+    public static Bitmap DrawEew(EEW eew)
     {
         var koruriFont = new FontFamily("Koruri Regular");
         Font font9 = new(koruriFont, 9),
@@ -38,15 +38,15 @@ public static class SideInfo
         var bmp = new Bitmap(260, 160);
         var g = GetGraphics(bmp);
 
-        var maxIntensity = Intensity.Parse(eew.CalcintensityString!);
+        var maxIntensity = eew.MaxInt;
         if (!Form1.Colors.TryGetValue(maxIntensity.EnumOrder, out var color)) color = Color.White;
         var textColor = maxIntensity.EnumOrder is -1 or >= 3 and <= 5 ? Color.Black : Color.White;
         g.FillRectangle(new SolidBrush(Color.FromArgb(130, Color.Black)), 0, 0, 260, 160);
         g.FillRectangle(new SolidBrush(color), 0, 56, 147, 55);
-        var last = eew.IsFinal is true ? "(最終)" : "";
+        var last = eew.Status is Statuses.Last or Statuses.CorrectionLast ? "(最終)" : "";
         TextRenderer.DrawText(g, "緊急地震速報", font23, new Rectangle(-4, 0, 260, 40), Color.White, TextFormatFlags.VerticalCenter);
-        TextRenderer.DrawText(g, eew.IsAlert ? "（警報）" : "（予報）", font14, new Point(180, 25), Color.White, TextFormatFlags.VerticalCenter);
-        TextRenderer.DrawText(g, $"第{eew.ReportNum}報{last}", font9, new Point(0, 40), Color.White);
+        TextRenderer.DrawText(g, eew.IsWarn ? "（警報）" : "（予報）", font14, new Point(180, 25), Color.White, TextFormatFlags.VerticalCenter);
+        TextRenderer.DrawText(g, $"第{eew.Number}報{last}", font9, new Point(0, 40), Color.White);
         var s = maxIntensity.ShortString.Replace("-", "").Replace("+", "");
         g.DrawString("最大震度", font14, new SolidBrush(textColor), 0, 85);
         if (maxIntensity.Equals(Intensity.Unknown))
@@ -68,11 +68,11 @@ public static class SideInfo
         }
 
         TextRenderer.DrawText(g, "M", font20, new Point(145, 76), Color.White);
-        TextRenderer.DrawText(g, $"{eew.Magunitude:0.0}", font40, new Point(166, 47), Color.White);
-        TextRenderer.DrawText(g, $"{eew.OriginTime:HH:mm:ss}発生", font9,
+        TextRenderer.DrawText(g, $"{eew.Magnitude:0.0}", font40, new Point(166, 47), Color.White);
+        TextRenderer.DrawText(g, $"{eew.DetectionTime:HH:mm:ss}発生", font9,
             new Rectangle(0, 40, 260, 15), Color.White, TextFormatFlags.Right);
         TextRenderer.DrawText(g, "震源地", font10, new Point(1, 115), secondary);
-        TextRenderer.DrawText(g, eew.RegionName, eew.RegionName!.Length < 8 ? font16 : font12,
+        TextRenderer.DrawText(g, eew.Epicenter, eew.Epicenter!.Length < 8 ? font16 : font12,
             new Rectangle(1, 130, 170, 27), Color.White, TextFormatFlags.VerticalCenter);
         TextRenderer.DrawText(g, "深さ", font10, new Point(174, 115), secondary);
         TextRenderer.DrawText(g, $"{eew.Depth}km", font16, new Point(172, 129), Color.White);
