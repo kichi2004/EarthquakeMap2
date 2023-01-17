@@ -186,6 +186,7 @@ public static class Map
         var zoomRateOffset = mapType == MapType.AreaFill ? 40.0 : iconSize * 4;
         var zoomRate = Math.Min((size.Width - zoomRateOffset) / lonDiff, (size.Height - zoomRateOffset) / latDiff);
         zoomRate *= zoom;
+        Console.WriteLine($"{zoomRate} ({zoom})");
         zoomRate = Math.Max(Math.Min(zoomRate, 500), 10);
         var width = size.Width;
         var height = size.Height;
@@ -197,20 +198,22 @@ public static class Map
             (float) (height - ((coordinates.Latitude - minLat) * zoomRate + 20 + offsetY))
         );
 
+        var colorScheme = Form1.CurrentScheme;
+
         var bmp = new Bitmap(width, height);
         using var g = Graphics.FromImage(bmp);
         g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.FillRectangle(new SolidBrush(Color.FromArgb(37, 37, 50)), 0, 0, width, height);
+        g.FillRectangle(new SolidBrush(colorScheme.Sea), 0, 0, width, height);
 
-        var pen = new Pen(Color.FromArgb(120, 120, 120), 1)
+        var pen = new Pen(colorScheme.Line, .8f)
         {
             LineJoin = LineJoin.Round,
             StartCap = LineCap.Round,
             EndCap = LineCap.Round
         };
         var pen2 = pen.Clone() as Pen;
-        pen2.Width = 2.5f;
+        pen2.Width = 1.8f;
         
         var pointsDict = new Dictionary<string, (PointF points, bool b)[][]>();
 
@@ -234,7 +237,7 @@ public static class Map
             }).ToArray();
 
         foreach (var pointFs in pointsDict.SelectMany(kvp => kvp.Value))
-            g.FillPolygon(new SolidBrush(Color.FromArgb(50, 50, 50)), pointFs.Select(x => x.points).ToArray());
+            g.FillPolygon(new SolidBrush(colorScheme.Land), pointFs.Select(x => x.points).ToArray());
 
         if (mapType == MapType.AreaFill)
         {
@@ -242,7 +245,7 @@ public static class Map
             {
                 if (!pointsDict.ContainsKey(code)) continue;
                 foreach (var pointFs in pointsDict[code])
-                    g.FillPolygon(new SolidBrush(Form1.Colors[intensity.EnumOrder]), pointFs.Select(x => x.points).ToArray());
+                    g.FillPolygon(new SolidBrush(Form1.CurrentScheme.IntensityColors[intensity.EnumOrder].background), pointFs.Select(x => x.points).ToArray());
             }
         }
 
@@ -283,11 +286,12 @@ public static class Map
     private static void DrawAreaIntensityIcon(Graphics g, Intensity intensity, PointF centerPoint, string? areaName = null)
     {
         const int iconSize = 22;
+        var (back, _, edge) = Form1.CurrentScheme.IntensityColors[intensity.EnumOrder];
         var topX = centerPoint.X - iconSize / 2f;
         var topY = centerPoint.Y - iconSize / 2f;
 
-        g.DrawRectangle(new Pen(Color.FromArgb(222, 222, 222), 2), topX, topY, iconSize, iconSize);
-        g.FillRectangle(new SolidBrush(Form1.Colors[intensity.EnumOrder]), topX, topY, iconSize, iconSize);
+        g.FillRectangle(new SolidBrush(back), topX, topY, iconSize, iconSize);
+        g.DrawRectangle(new Pen(edge ?? Color.FromArgb(222, 222, 222), 2), topX, topY, iconSize, iconSize);
         DrawIntensityIconString(g, intensity, new PointF(topX, topY), iconSize, 
             2, -1, 21, 3, 9, -3, 18, 13, 7, 7, 2);
 
@@ -304,15 +308,19 @@ public static class Map
         bool noChars = false)
     {
         var iconSize = noChars ? 8 : 18;
+        var (back, _, edge) = Form1.CurrentScheme.IntensityColors[intensity.EnumOrder];
         var topX = centerPoint.X - iconSize / 2f;
         var topY = centerPoint.Y - iconSize / 2f;
+
+        g.FillEllipse(new SolidBrush(back), topX, topY, iconSize, iconSize);
+        if (edge != null)
+        {
+            g.DrawEllipse(new Pen(edge.Value), topX, topY, iconSize, iconSize);
+        }
         if (noChars)
         {
-            g.FillEllipse(new SolidBrush(Form1.Colors[intensity.EnumOrder]), topX, topY, iconSize, iconSize);
             return;
         }
-
-        g.FillEllipse(new SolidBrush(Form1.Colors[intensity.EnumOrder]), topX, topY, iconSize, iconSize);
         DrawIntensityIconString(g, intensity, new PointF(topX, topY), iconSize, 2, 1, 16, 2, 9, 0, 11, 10, 7, 5, 2);
     }
 
@@ -330,7 +338,7 @@ public static class Map
             _ => null
         };
         if (intensity == Intensity.Unknown) return;
-        var textColor = intensity.EnumOrder is >= 3 and <= 6 ? Color.FromArgb(240, 0, 0, 00) : Color.FromArgb(240, 255, 255, 255);
+        var textColor = Form1.CurrentScheme.IntensityColors[intensity.EnumOrder].foreground;
         if (intensityPlusMinus != null)
         {
             var offset = offsetX1 - offsetDiff;

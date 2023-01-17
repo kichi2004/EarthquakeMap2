@@ -39,10 +39,10 @@ public static class SideInfo
         var g = GetGraphics(bmp);
 
         var maxIntensity = eew.MaxInt;
-        if (!Form1.Colors.TryGetValue(maxIntensity.EnumOrder, out var color)) color = Color.White;
+        if (!Form1.CurrentScheme.IntensityColors.TryGetValue(maxIntensity.EnumOrder, out var colors)) colors = (Color.White, Color.Black, null);
         var textColor = maxIntensity.EnumOrder is -1 or >= 3 and <= 5 ? Color.Black : Color.White;
-        g.FillRectangle(new SolidBrush(Color.FromArgb(130, Color.Black)), 0, 0, 260, 160);
-        g.FillRectangle(new SolidBrush(color), 0, 56, 147, 55);
+        g.FillRectangle(new SolidBrush(Color.FromArgb(130, Color.Black)) , 0, 0, 260, 160);
+        g.FillRectangle(new SolidBrush(colors.background), 0, 56, 147, 55);
         var last = eew.Status is Statuses.Last or Statuses.CorrectionLast ? "(最終)" : "";
         TextRenderer.DrawText(g, "緊急地震速報", font23, new Rectangle(-4, 0, 260, 40), Color.White, TextFormatFlags.VerticalCenter);
         TextRenderer.DrawText(g, eew.IsWarn ? "（警報）" : "（予報）", font14, new Point(180, 25), Color.White, TextFormatFlags.VerticalCenter);
@@ -174,9 +174,8 @@ public static class SideInfo
 
         if (info.Type == EarthquakeInformationType.HypocenterAndSeismicIntensityInformation)
         {
-            var color = Form1.Colors[info.MaxIntensity.EnumOrder];
-            var textColor = info.MaxIntensity.EnumOrder is -1 or >= 3 and <= 5 ? Color.Black : Color.White;
-            g.FillRectangle(new SolidBrush(color), 0, 0, 147, 55);
+            var (back, textColor, _) = Form1.CurrentScheme.IntensityColors[info.MaxIntensity.EnumOrder];;
+            g.FillRectangle(new SolidBrush(back), 0, 0, 147, 55);
             var s = info.MaxIntensity.ShortString[0].ToString();
             g.DrawString("最大震度", font14, new SolidBrush(textColor), 0, 29);
             if (info.MaxIntensity.Equals(Intensity.Unknown))

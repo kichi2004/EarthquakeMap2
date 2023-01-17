@@ -34,6 +34,7 @@
             this.toolStripInformationTestIndex = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripInformationTest = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripInformationTestEew = new System.Windows.Forms.ToolStripMenuItem();
+            this.colorSchemeToolStrip = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.contextMenuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -52,9 +53,10 @@
             // contextMenuStrip1
             // 
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripInformationTestIndex});
+            this.toolStripInformationTestIndex,
+            this.colorSchemeToolStrip});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(125, 26);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(181, 70);
             // 
             // toolStripInformationTestIndex
             // 
@@ -62,7 +64,7 @@
             this.toolStripInformationTest,
             this.toolStripInformationTestEew});
             this.toolStripInformationTestIndex.Name = "toolStripInformationTestIndex";
-            this.toolStripInformationTestIndex.Size = new System.Drawing.Size(124, 22);
+            this.toolStripInformationTestIndex.Size = new System.Drawing.Size(180, 22);
             this.toolStripInformationTestIndex.Text = "情報テスト";
             // 
             // toolStripInformationTest
@@ -76,6 +78,12 @@
             this.toolStripInformationTestEew.Name = "toolStripInformationTestEew";
             this.toolStripInformationTestEew.Size = new System.Drawing.Size(146, 22);
             this.toolStripInformationTestEew.Text = "緊急地震速報";
+            // 
+            // colorSchemeToolStrip
+            // 
+            this.colorSchemeToolStrip.Name = "colorSchemeToolStrip";
+            this.colorSchemeToolStrip.Size = new System.Drawing.Size(180, 22);
+            this.colorSchemeToolStrip.Text = "カラースキーマ切り替え";
             // 
             // Form1
             // 
@@ -98,5 +106,6 @@
         private ToolStripMenuItem toolStripInformationTestIndex;
         private ToolStripMenuItem toolStripInformationTest;
         private ToolStripMenuItem toolStripInformationTestEew;
+        private ToolStripMenuItem colorSchemeToolStrip;
     }
 }

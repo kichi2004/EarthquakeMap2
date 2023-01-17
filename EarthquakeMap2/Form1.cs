@@ -35,8 +35,8 @@ public partial class Form1 : Form
 
     private static readonly (string, DateTime)[] TestEewList =
     {
-        ("石川県能登地方 2022/06/19", new DateTime(2022, 6, 19, 15, 8, 4)),
-        ("石川県能登地方 2023/01/06", new DateTime(2023, 1, 6, 13, 44, 12)),
+        ("石川県能登地方 2022/06/19", new DateTime(2022, 6, 19, 15, 8, 15)),
+        ("石川県能登地方 2023/01/06", new DateTime(2023, 1, 6, 13, 44, 11)),
     };
 
 
@@ -52,7 +52,9 @@ public partial class Form1 : Form
         {
             if (e.Delta < 0) _zoom /= 1.2;
             else _zoom *= 1.2;
-            UpdateEarthquake();
+
+            if (_isLastEew) UpdateEew();
+            else UpdateEarthquake();
         };
 
         Map.Initialize();
@@ -62,6 +64,7 @@ public partial class Form1 : Form
         infoService.InformationUpdated += (_, e) =>
         {
             _earthquake = e.Information;
+            _isLastEew = false;
             _zoom = 1;
             UpdateEarthquake();
         };
@@ -92,23 +95,57 @@ public partial class Form1 : Form
             toolStripInformationTestEew.DropDownItems.Add(text, null, (_, _) => eewService.UpdateTime(dt));
         }
         // eewService.UpdateTime(new DateTime(2023, 1, 6, 13, 44, 12));
-    }
-    
 
-    internal static Dictionary<int, Color> Colors = new()
+        foreach (var (key, value) in ColorSchemes)
+        {
+            colorSchemeToolStrip.DropDownItems.Add(key, null, (_, _) =>
+            {
+                CurrentScheme = value;
+
+                if (_isLastEew) UpdateEew();
+                else UpdateEarthquake();
+            });
+        }
+    }
+
+    internal static Dictionary<string, ColorScheme> ColorSchemes = new()
     {
-        {1, Color.FromArgb(60, 90, 130)},
-        {2, Color.FromArgb(30, 130, 230)},
-        {3, Color.FromArgb(120, 230, 220)},
-        {4, Color.FromArgb(255, 255, 150)},
-        {5, Color.FromArgb(255, 210, 10)},
-        {6, Color.FromArgb(255, 150, 0)},
-        {7, Color.FromArgb(240, 50, 0)},
-        {8, Color.FromArgb(190, 0, 0)},
-        {9, Color.FromArgb(140, 0, 40)},
-        // 不明: 震度５弱以上と推定
-        { -1, Color.FromArgb(255, 210, 10) }
+        {
+            "Kiwi Monitor カラースキーム 第3版", new(new Dictionary<int, (Color, Color, Color?)>
+            {
+                { 1, (Color.FromArgb(60, 90, 130), Color.FromArgb(240, 255, 255, 255), null) },
+                { 2, (Color.FromArgb(30, 130, 230), Color.FromArgb(240, 255, 255, 255), null) },
+                { 3, (Color.FromArgb(120, 230, 220), Color.FromArgb(240, 0, 0, 00), null) },
+                { 4, (Color.FromArgb(255, 255, 150), Color.FromArgb(240, 0, 0, 00), null) },
+                { 5, (Color.FromArgb(255, 210, 10), Color.FromArgb(240, 0, 0, 00), null) },
+                { 6, (Color.FromArgb(255, 150, 0), Color.FromArgb(240, 0, 0, 00), null) },
+                { 7, (Color.FromArgb(240, 50, 0), Color.FromArgb(240, 255, 255, 255), null) },
+                { 8, (Color.FromArgb(190, 0, 0), Color.FromArgb(240, 255, 255, 255), null) },
+                { 9, (Color.FromArgb(140, 0, 40), Color.FromArgb(240, 255, 255, 255), null) },
+                // 不明: 震度５弱以上と推定
+                { -1, (Color.FromArgb(255, 210, 10), Color.FromArgb(240, 0, 0, 00), null) }
+            }, Color.FromArgb(37, 37, 50), Color.FromArgb(50, 50, 50), Color.FromArgb(120, 120, 120))
+        },
+        {
+            "気象庁", new(new Dictionary<int, (Color, Color, Color?)>
+            {
+                { 1, (Color.FromArgb(242, 242, 255), Color.FromArgb(240, 0, 0, 00), Color.Black) },
+                { 2, (Color.FromArgb(0, 170, 255), Color.FromArgb(240, 0, 0, 00), Color.Black) },
+                { 3, (Color.FromArgb(0, 65, 255), Color.FromArgb(240, 255, 255, 255), Color.Black) },
+                { 4, (Color.FromArgb(250, 230, 150), Color.FromArgb(240, 0, 0, 00), Color.Black) },
+                { 5, (Color.FromArgb(255, 230, 0), Color.FromArgb(240, 0, 0, 00), Color.Black) },
+                { 6, (Color.FromArgb(255, 153, 0), Color.FromArgb(240, 0, 0, 00), Color.Black) },
+                { 7, (Color.FromArgb(255, 40, 0), Color.FromArgb(240, 255, 255, 255), Color.Black) },
+                { 8, (Color.FromArgb(165, 0, 33), Color.FromArgb(240, 255, 255, 255), Color.Black) },
+                { 9, (Color.FromArgb(180, 0, 104), Color.FromArgb(240, 255, 255, 255), Color.Black) },
+                // 不明: 震度５弱以上と推定
+                { -1, (Color.FromArgb(255, 230, 0), Color.FromArgb(240, 0, 0, 00), Color.Black) }
+            }, Color.LightSkyBlue, Color.WhiteSmoke, Color.Black)
+        }
     };
+
+
+    internal static ColorScheme CurrentScheme { get; private set; } = ColorSchemes["Kiwi Monitor カラースキーム 第3版"];
     
     private static ObservationPoint[]? _observationPoints;
 
@@ -139,26 +176,12 @@ public partial class Form1 : Form
     {
         var eewRaw = e.Eew;
         if (eewRaw is not KmoniEew eew) return;
-        var intensityList = eew.EstimationResults
-            .Where(x => x.AnalysisResult != null)
-            .Select(x => (x.ObservationPoint.Code, Intensity.FromValue((float)ColorConverter.ConvertToIntensityFromScale(x.AnalysisResult!.Value))))
-            .Where(x => x.Item2 >= Intensity.Int1);
-
-        var filterIntensity = eew.MaxInt.EnumOrder switch
-        {
-            5 or 6 => Intensity.Int2,
-            7 or 8 => Intensity.Int3,
-            9 => Intensity.Int4,
-            _ => Intensity.Int1
-        };
-
-        var sideInfo = SideInfo.DrawEew(eew);
-        var bmp = Map.DrawMap(intensityList.ToArray(), eew.Location, pictureBox1.Size, MapType.PointIcon,
-            filterIntensity, sideInfo, _zoom);
-        ChangePicture(bmp);
-
+        
+            _zoom = 1;
         _eew = eew;
         _isLastEew = true;
+
+        UpdateEew();
 
         // result.Where(x => x.AnalysisResult != null)
         // .Select(x => (x.ObservationPoint.Code,
@@ -269,7 +292,7 @@ public partial class Form1 : Form
         var sideInfo = SideInfo.DrawInformation(_earthquake);
         var size = pictureBox1.Size;
         size.Width -= 300;
-
+        
         var bmp = Map.DrawMap(intensityList.ToArray(),
             _earthquake.Earthquake?.Hypocenter?.Coordinate, pictureBox1.Size,
             _earthquake.Type == EarthquakeInformationType.SeismicIntensityInformation
@@ -277,5 +300,33 @@ public partial class Form1 : Form
                 : MapType.PointIcon,
             filterIntensity, sideInfo, _zoom);
         ChangePicture(bmp);
+    }
+
+    private void UpdateEew()
+    {
+        var intensityList = _eew.EstimationResults
+            .Where(x => x.AnalysisResult != null)
+            .Select(x => (x.ObservationPoint.Code, Intensity.FromValue((float)ColorConverter.ConvertToIntensityFromScale(x.AnalysisResult!.Value))))
+            .Where(x => x.Item2 >= Intensity.Int1);
+
+        var filterIntensity = _eew.MaxInt.EnumOrder switch
+        {
+            5 or 6 => Intensity.Int2,
+            7 or 8 => Intensity.Int3,
+            9 => Intensity.Int4,
+            _ => Intensity.Int1
+        };
+
+        var sideInfo = SideInfo.DrawEew(_eew);
+        var bmp = Map.DrawMap(intensityList.ToArray(), _eew.Location, pictureBox1.Size, MapType.PointIcon,
+            filterIntensity, sideInfo, _zoom);
+        ChangePicture(bmp);
+
+        // result.Where(x => x.AnalysisResult != null)
+        // .Select(x => (x.ObservationPoint.Code,
+        //         Intensity.FromValue(
+        //             (float)ColorConverter.ConvertToIntensityFromScale(x.AnalysisResult!.Value))))
+        //     .Where(x => x.Item2 >= Intensity.Int1)
+
     }
 }

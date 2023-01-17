@@ -99,9 +99,9 @@ namespace EarthquakeMap2.Services.Eew
             var eventArgs = new EewUpdatedEventArgs<LibEew>(eew);
 
 
+            Console.WriteLine($"[EEW] No.{eew.Number}(last={eew.IsLast}) {eew.Epicenter} M{eew.Magnitude:0.0} {eew.Depth}km 最大{eew.MaxInt.LongString}");
             if (isFirst) EewUpdatedForFirst?.Invoke(this, eventArgs);
             else EewUpdatedForContinue?.Invoke(this, eventArgs);
-            Console.WriteLine($"[EEW] No.{eew.Number}(last={eew.IsLast}) {eew.Epicenter} M{eew.Magnitude:0.0} {eew.Depth}km 最大{eew.MaxInt.LongString}");
         }
 
         public async void UpdateTime(DateTime? dateTime)
